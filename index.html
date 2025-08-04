@@ -61,13 +61,25 @@
             background-color: #0056b3;
             border-color: #004085;
         }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
     <div class="container py-4">
         <div class="text-center mb-4">
-            <h2 class="fw-bold">ระบบบันทึกอุณหภูมิตู้เย็นเก็บยา</h2>
-            <p class="text-muted">หอผู้ป่วยหนักอายุรกรรม3 โรงพยาบาลศูนย์นครพิงค์</p>
+            <h2 class="fw-bold">ระบบบันทึกอุณหภูมิตู้เย็นยา (รายเดือน)</h2>
+            <p class="text-muted">โรงพยาบาล</p>
         </div>
 
         <!-- Section: Select Date & Temperature Form -->
@@ -148,6 +160,13 @@
             <button id="closeModalBtn" class="btn btn-primary-custom w-100 mt-3">ตกลง</button>
         </div>
     </div>
+    
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">กำลังโหลด...</span>
+        </div>
+    </div>
 
     <script>
         // DOM element references
@@ -162,9 +181,10 @@
         const customModal = document.getElementById("customModal");
         const modalMessage = document.getElementById("modalMessage");
         const closeModalBtn = document.getElementById("closeModalBtn");
+        const loadingOverlay = document.getElementById("loadingOverlay");
 
-        // Object to store all monthly data, loaded from localStorage
-        let allData = JSON.parse(localStorage.getItem('monthlyTemperatureData')) || {};
+        // Object to store all monthly data, fetched from Google Sheet
+        let allData = {};
 
         //  *** IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE ***
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2xwbtSIgYHFGLVJkQ0vyVG9T8XiW1OmD9DTdIK12ZIIa8bFVsktsRjnQIvoCryUmA/exec';
@@ -198,13 +218,11 @@
                         callbacks: {
                             title: function(tooltipItems) {
                                 const item = tooltipItems[0];
-                                const date = datePicker.value;
-                                const time = tempChart.data.labels[item.dataIndex];
-                                return `บันทึกเมื่อ: ${date} เวลา ${time}`;
+                                const entry = allData[datePicker.value][item.dataIndex];
+                                return `บันทึกเมื่อ: ${entry.date} เวลา ${entry.time}`;
                             },
                             label: function(tooltipItem) {
-                                const date = datePicker.value;
-                                const entry = allData[date][tooltipItem.dataIndex];
+                                const entry = allData[datePicker.value][tooltipItem.dataIndex];
                                 return [
                                     `อุณหภูมิ: ${entry.temp.toFixed(1)} °C`,
                                     `กะ: ${entry.shift}`,
@@ -263,6 +281,15 @@
             customModal.classList.add('d-none');
         });
 
+        // Function to show/hide loading overlay
+        function showLoading(show) {
+            if (show) {
+                loadingOverlay.classList.remove('d-none');
+            } else {
+                loadingOverlay.classList.add('d-none');
+            }
+        }
+
         // Function to determine the shift based on the time (HH:MM 24hr format)
         function getShiftFromTime(timeStr) {
             const [hh, mm] = timeStr.split(":").map(Number);
@@ -270,10 +297,49 @@
 
             if (totalMins >= 0 && totalMins <= 480) { // 00:00 - 08:00
                 return "กะดึก (00.00-08.00)";
-            } else if (totalMins >= 481 && totalMins <= 960) { // 08:01 - 16:00
+            } else if (totalMins > 480 && totalMins <= 960) { // 08:01 - 16:00
                 return "กะเช้า (08.01-16.00)";
             } else { // 16:01 - 23:59
                 return "กะบ่าย (16.01-23.59)";
+            }
+        }
+
+        // Function to fetch data from the Google Sheet and update the view
+        async function fetchDataFromSheet() {
+            showLoading(true);
+            try {
+                // Add a unique timestamp to the URL to prevent browser caching
+                const url = `${GOOGLE_APPS_SCRIPT_URL}?t=${new Date().getTime()}`;
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('ไม่สามารถดึงข้อมูลจาก Google Sheet ได้');
+                }
+                const rawData = await response.json();
+                
+                // Group data by date
+                allData = rawData.reduce((acc, entry) => {
+                    // Convert date from sheet (e.g., "2024-05-20T00:00:00.000Z") to "YYYY-MM-DD"
+                    const dateObj = new Date(entry.date);
+                    const dateStr = dateObj.toISOString().slice(0, 10);
+                    
+                    if (!acc[dateStr]) {
+                        acc[dateStr] = [];
+                    }
+                    // Ensure temperature is a number
+                    entry.temp = parseFloat(entry.temp);
+                    // Add date string for sorting
+                    entry.date = dateStr;
+                    acc[dateStr].push(entry);
+                    return acc;
+                }, {});
+                
+                updateView(datePicker.value);
+
+            } catch (error) {
+                showModal("ข้อผิดพลาดในการโหลดข้อมูล: " + error.message);
+            } finally {
+                showLoading(false);
             }
         }
 
@@ -306,7 +372,7 @@
                             ${entry.temp.toFixed(1)}
                         </td>
                         <td>${entry.nurse}</td>
-                        <td>${date}</td>
+                        <td>${entry.date}</td>
                     `;
                     recordTable.appendChild(row);
 
@@ -315,11 +381,6 @@
                 });
             }
             tempChart.update();
-        }
-
-        // Function to save data to localStorage
-        function saveData() {
-            localStorage.setItem('monthlyTemperatureData', JSON.stringify(allData));
         }
 
         // Function to create and download the monthly CSV report
@@ -407,6 +468,7 @@
             formData.append('temperature', temperature.toFixed(1));
             formData.append('nurseName', nurse);
 
+            showLoading(true);
             try {
                 // Send data to the Google Apps Script Web App
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -421,24 +483,19 @@
                 const result = await response.json();
 
                 if (result.result === 'success') {
-                    // If successful, save to local storage and update the view
-                    if (!allData[date]) {
-                        allData[date] = [];
-                    }
-                    allData[date].push({ time: timeVal, shift, temp: temperature, nurse, date });
-                    saveData();
-                    updateView(date);
-                    
                     showModal("บันทึกข้อมูลสำเร็จ!");
                     form.reset();
                     shiftInfo.textContent = "";
                     tempFeedback.textContent = "";
+                    await fetchDataFromSheet(); // Fetch new data after successful submission
                 } else {
                     showModal("มีข้อผิดพลาดในการบันทึกข้อมูล: " + result.error);
                 }
 
             } catch (error) {
                 showModal("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: " + error.message);
+            } finally {
+                showLoading(false);
             }
         });
 
@@ -455,7 +512,7 @@
         // Set the initial date to today and update the view on page load
         document.addEventListener("DOMContentLoaded", () => {
             datePicker.valueAsDate = new Date();
-            updateView(datePicker.value);
+            fetchDataFromSheet();
         });
     </script>
 </body>
