@@ -78,7 +78,7 @@
 <body>
     <div class="container py-4">
         <div class="text-center mb-4">
-            <h2 class="fw-bold">ระบบบันทึกอุณหภูมิตู้เย็นยา</h2>
+            <h2 class="fw-bold">ระบบบันทึกอุณหภูมิตู้เย็นเก็บยา</h2>
             <p class="text-muted">หอผู้ป่วยหนักอายุรกรรม3 โรงพยาบาลศูนย์นครพิงค์</p>
         </div>
 
@@ -187,7 +187,7 @@
         let allData = {};
 
         //  *** IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE ***
-        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2xwbtSIgYHFGLVJkQ0vyVG9T8XiW1OmD9DTdIK12ZIIa8bFVsktsRjnQIvoCryUmA/exec';
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2xwbtSIgYHFGLVJkQ0vyVG9T8XiW1OmD9DTdIK12ZIIa8bFVsktsRjnQIvoCryUmA/exec'; // Please paste your URL here
 
         // Chart.js setup
         const ctx = document.getElementById("tempChart").getContext("2d");
@@ -309,6 +309,7 @@
             showLoading(true);
             try {
                 // Add a unique timestamp to the URL to prevent browser caching
+                // This ensures the browser always fetches fresh data, not cached data.
                 const url = `${GOOGLE_APPS_SCRIPT_URL}?t=${new Date().getTime()}`;
 
                 const response = await fetch(url);
@@ -319,17 +320,15 @@
                 
                 // Group data by date
                 allData = rawData.reduce((acc, entry) => {
-                    // Convert date from sheet (e.g., "2024-05-20T00:00:00.000Z") to "YYYY-MM-DD"
-                    const dateObj = new Date(entry.date);
-                    const dateStr = dateObj.toISOString().slice(0, 10);
+                    // Use the date string directly from Apps Script, which is now guaranteed to be YYYY-MM-DD
+                    const dateStr = entry.date; 
                     
                     if (!acc[dateStr]) {
                         acc[dateStr] = [];
                     }
                     // Ensure temperature is a number
                     entry.temp = parseFloat(entry.temp);
-                    // Add date string for sorting
-                    entry.date = dateStr;
+                    // No need to re-assign entry.date here as it's already in the correct format from Apps Script
                     acc[dateStr].push(entry);
                     return acc;
                 }, {});
