@@ -167,9 +167,6 @@
         // Object to store all monthly data, loaded from localStorage
         let allData = JSON.parse(localStorage.getItem('monthlyTemperatureData')) || {};
 
-        //  *** สำคัญมาก: กรุณาวาง URL ของ Google Apps Script Web App ของคุณที่นี่ ***
-        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2xwbtSIgYHFGLVJkQ0vyVG9T8XiW1OmD9DTdIK12ZIIa8bFVsktsRjnQIvoCryUmA/exec';
-
         // Chart.js setup
         const ctx = document.getElementById("tempChart").getContext("2d");
         const tempChart = new Chart(ctx, {
