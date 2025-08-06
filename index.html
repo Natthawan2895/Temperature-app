@@ -218,7 +218,7 @@ function updateView(date) {
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${formatDateThaiFromISO(entry.date)}</td>
-                <td>${formatTimeThaiFromISO(entry.time)}</td>
+                <td>${formatTimeThaiFromISO(entry.timeVal)}</td>
                 <td>${entry.shift}</td>
                 <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
                     ${entry.temperature}
