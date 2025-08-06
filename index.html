@@ -159,6 +159,13 @@ function formatTimeThai(timeStr) {
 
     return `${hh}:${mm} น.`;
 }
+function formatTimeThai2(isoTime) {
+  if (!isoTime) return "";
+  const date = new Date(isoTime);
+  const hh = date.getUTCHours().toString().padStart(2, "0");
+  const mm = date.getUTCMinutes().toString().padStart(2, "0");
+  return `${hh}:${mm} น.`;
+}
 
 async function loadMonthlyData() {
     try {
@@ -211,7 +218,7 @@ async function loadMonthlyData() {
             recordTable.appendChild(row);
 
             // เพิ่มข้อมูลลงกราฟ
-            tempChart.data.labels.push(`${formatDateThai(entry.date)} ${formatTimeThai(entry.time)}`);
+            tempChart.data.labels.push(`${formatDateThai(entry.date)} ${formatTimeThai2(entry.time)}`);
             tempChart.data.datasets[0].data.push(entry.temperature);
         });
 
