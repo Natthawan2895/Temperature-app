@@ -132,7 +132,50 @@
         data: { labels: [], datasets: [{ label: "อุณหภูมิ", data: [], borderColor: "#007bff", fill: true }] },
         options: { responsive: true, maintainAspectRatio: false }
     });
+    function formatDateThai(dateStr) {
+    const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const [year, month, day] = dateStr.split("-");
+    const thaiYear = parseInt(year) + 543;
+    return `${parseInt(day)} ${months[parseInt(month) - 1]} ${thaiYear}`;
+}
 
+// ฟังก์ชันแปลงเวลาให้อ่านง่าย
+function formatTimeThai(timeStr) {
+    if (!timeStr) return "";
+    const [hour, minute] = timeStr.split(":");
+    return `${hour}:${minute} น.`;
+}
+
+// อัปเดตตารางและกราฟ
+function updateView(date) {
+    recordTable.innerHTML = "";
+    tempChart.data.labels = [];
+    tempChart.data.datasets[0].data = [];
+
+    if (allData[date]) {
+        // Sort records by time
+        allData[date].sort((a, b) => a.time.localeCompare(b.time));
+
+        allData[date].forEach((entry) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${formatTimeThai(entry.time)}</td>
+                <td>${entry.shift}</td>
+                <td class="${entry.temp >= 2 && entry.temp <= 8 ? "valid-temp" : "invalid-temp"}">
+                    ${entry.temp.toFixed(1)}
+                </td>
+                <td>${entry.nurse}</td>
+                <td>${formatDateThai(date)}</td>
+            `;
+            recordTable.appendChild(row);
+
+            tempChart.data.labels.push(formatTimeThai(entry.time));
+            tempChart.data.datasets[0].data.push(entry.temp);
+        });
+    }
+    tempChart.update();
+}
     function showModal(message) {
         modalMessage.textContent = message;
         customModal.classList.remove('d-none');
