@@ -490,34 +490,35 @@
         async function loadCentralTable() {
     try {
         const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        console.log("Data from GAS:", data);
         if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
 
         const data = await response.json();
-        const centralTable = document.getElementById("centralTable");
-        centralTable.innerHTML = "";
+        const recordTable = document.getElementById("recordTable");
+        recordTable.innerHTML = "";
 
         if (!data || data.length === 0) {
-            centralTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
+            recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
             return;
         }
 
         data.forEach(entry => {
             const row = document.createElement("tr");
             row.innerHTML = `
-                <td>${entry.date}</td>
                 <td>${entry.time}</td>
                 <td>${entry.shift}</td>
                 <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
                     ${entry.temperature}
                 </td>
                 <td>${entry.nurse}</td>
+                <td>${entry.date}</td>
             `;
-            centralTable.appendChild(row);
+            recordTable.appendChild(row);
         });
     } catch (error) {
-        console.error("Error loading central table:", error);
-        document.getElementById("centralTable").innerHTML =
-            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดตารางกลาง</td></tr>`;
+        console.error("Error loading table:", error);
+        document.getElementById("recordTable").innerHTML =
+            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดข้อมูล</td></tr>`;
     }
 }
         // Set the initial date to today and update the view on page load
