@@ -195,35 +195,38 @@ function updateView(date) {
     });
 
     async function loadCentralTable() {
-        try {
-            const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
-            const data = await response.json();
-            recordTable.innerHTML = "";
+    try {
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
 
-            if (!data.length) {
-                recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
-                return;
-            }
+        const data = await response.json();
+        const centralTable = document.getElementById("centralTable");
+        centralTable.innerHTML = "";
 
-            data.forEach(entry => {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${entry.date}</td>
-                    <td>${entry.time}</td>
-                    <td>${entry.shift}</td>
-                    <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">${entry.temperature}</td>
-                    <td>${entry.nurse}</td>
-                `;
-                recordTable.appendChild(row);
-
-                tempChart.data.labels.push(`${entry.date} ${entry.time}`);
-                tempChart.data.datasets[0].data.push(entry.temperature);
-            });
-            tempChart.update();
-        } catch (error) {
-            recordTable.innerHTML = `<tr><td colspan="5" class="text-danger">โหลดข้อมูลล้มเหลว</td></tr>`;
+        if (!data || data.length === 0) {
+            centralTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
+            return;
         }
+
+        data.forEach(entry => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${formatDateThaiFromISO(entry.date)}</td>
+                <td>${formatTimeThaiFromISO(entry.date)}</td>
+                <td>${entry.shift}</td>
+                <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
+                    ${entry.temperature}
+                </td>
+                <td>${entry.nurse}</td>
+            `;
+            centralTable.appendChild(row);
+        });
+    } catch (error) {
+        console.error("Error loading central table:", error);
+        document.getElementById("centralTable").innerHTML =
+            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดตารางกลาง</td></tr>`;
     }
+}
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
