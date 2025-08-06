@@ -265,7 +265,7 @@ async function loadCentralTable() {
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${formatDateThai(entry.date)}</td>
-                <td>${formatTimeThai(entry.date, entry.time)}</td>
+                <td>${formatTimeThai(entry.time)}</td>
                 <td>${entry.shift}</td>
                 <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
                     ${entry.temperature}
