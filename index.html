@@ -323,6 +323,26 @@
         }
 
         // Function to create and download the monthly CSV report
+        function doGet(e) {
+          const ss = SpreadsheetApp.openById("YOUR_SHEET_ID");
+          const sheet = ss.getSheetByName("Sheet1"); // adjust sheet name
+          const data = sheet.getDataRange().getValues();
+          
+          // Convert to JSON (skip header row)
+          const jsonData = [];
+          for (let i = 1; i < data.length; i++) {
+            jsonData.push({
+              date: data[i][0],
+              time: data[i][1],
+              shift: data[i][2],
+              temperature: data[i][3],
+              nurse: data[i][4]
+            });
+          }
+          
+          return ContentService.createTextOutput(JSON.stringify(jsonData))
+                              .setMimeType(ContentService.MimeType.JSON);
+        }
         function downloadCSVForMonth(date) {
             if (!date) {
                 showModal("กรุณาเลือกวันที่ก่อนดาวน์โหลดรายงาน");
