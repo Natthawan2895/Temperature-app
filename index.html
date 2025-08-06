@@ -258,6 +258,13 @@ async function loadCentralTable() {
         recordTable.innerHTML = "";
         tempChart.data.labels = [];
         tempChart.data.datasets[0].data = [];
+        
+        allData[date].forEach(entry => {
+          // Use the actual time from each entry, formatted
+          tempChart.data.labels.push(formatTimeThai(entry.time));  // formatTimeThai: formats "13:59" etc.
+          tempChart.data.datasets[0].data.push(entry.temp);
+        });
+        tempChart.update();
 
         if (!data || data.length === 0) {
             recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
