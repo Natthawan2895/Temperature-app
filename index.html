@@ -280,6 +280,9 @@ async function loadCentralTable() {
                 <td>${entry.nurse}</td>
             `;
             recordTable.appendChild(row);
+        });  
+
+        tempChart.update();
 
     } catch (error) {
         console.error("Error loading central table:", error);
@@ -287,7 +290,6 @@ async function loadCentralTable() {
             `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดตารางกลาง</td></tr>`;
     }
 }
-
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const date = datePicker.value;
