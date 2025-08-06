@@ -144,10 +144,19 @@ function formatDateThai(dateStr) {
     return `${d} ${m} ${y}`;
 }
 
-// ฟังก์ชันแปลงเวลาไทย
 function formatTimeThai(timeStr) {
     if (!timeStr) return "";
-    const [hh, mm] = timeStr.split(":");
+
+    const date = new Date(timeStr);
+
+    // ดึงชั่วโมงและนาที (เวลา UTC)
+    let hh = date.getUTCHours();
+    let mm = date.getUTCMinutes();
+
+    // แปลงเป็น string 2 หลัก
+    hh = String(hh).padStart(2, "0");
+    mm = String(mm).padStart(2, "0");
+
     return `${hh}:${mm} น.`;
 }
 
