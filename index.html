@@ -162,6 +162,7 @@
         const customModal = document.getElementById("customModal");
         const modalMessage = document.getElementById("modalMessage");
         const closeModalBtn = document.getElementById("closeModalBtn");
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIIhjjbqVi9zYufiy7_w_7WmGjMMNJJfk2yfMvrOu_EC51ZZ9BiXcq5h94ebFIQaMS/exec';
 
         // Object to store all monthly data, loaded from localStorage
         let allData = JSON.parse(localStorage.getItem('monthlyTemperatureData')) || {};
@@ -286,7 +287,42 @@
                 shiftInfo.textContent = "";
             }
         });
-
+        // Save form submissions
+        function doPost(e) {
+          const ss = SpreadsheetApp.openById("YOUR_SHEET_ID");
+          const sheet = ss.getSheetByName("Sheet1");
+          
+          sheet.appendRow([
+            e.parameter.date,
+            e.parameter.time,
+            e.parameter.shift,
+            e.parameter.temperature,
+            e.parameter.nurseName
+          ]);
+          
+          return ContentService.createTextOutput(
+            JSON.stringify({ result: "success" })
+          ).setMimeType(ContentService.MimeType.JSON);
+        }
+        function doGet(e) {
+              const ss = SpreadsheetApp.openById("154FlmYQsSYWuKqYGeuRF-hlEHJmw2kiZN8w0z79yjXE"); 
+              const sheet = ss.getSheetByName("Sheet1"); // adjust if your sheet name differs
+              const data = sheet.getDataRange().getValues();
+              
+              const jsonData = [];
+              for (let i = 1; i < data.length; i++) {
+                jsonData.push({
+                  date: data[i][0],
+                  time: data[i][1],
+                  shift: data[i][2],
+                  temperature: data[i][3],
+                  nurse: data[i][4]
+                });
+              }
+              
+              return ContentService.createTextOutput(JSON.stringify(jsonData))
+                                   .setMimeType(ContentService.MimeType.JSON);
+            }
         // Function to update the table and chart based on the selected date
         function updateView(date) {
             recordTable.innerHTML = "";
@@ -323,26 +359,6 @@
         }
 
         // Function to create and download the monthly CSV report
-        function doGet(e) {
-          const ss = SpreadsheetApp.openById("YOUR_SHEET_ID");
-          const sheet = ss.getSheetByName("Sheet1"); // adjust sheet name
-          const data = sheet.getDataRange().getValues();
-          
-          // Convert to JSON (skip header row)
-          const jsonData = [];
-          for (let i = 1; i < data.length; i++) {
-            jsonData.push({
-              date: data[i][0],
-              time: data[i][1],
-              shift: data[i][2],
-              temperature: data[i][3],
-              nurse: data[i][4]
-            });
-          }
-          
-          return ContentService.createTextOutput(JSON.stringify(jsonData))
-                              .setMimeType(ContentService.MimeType.JSON);
-        }
         function downloadCSVForMonth(date) {
             if (!date) {
                 showModal("กรุณาเลือกวันที่ก่อนดาวน์โหลดรายงาน");
@@ -471,11 +487,45 @@
         downloadCsvBtn.addEventListener("click", () => {
             downloadCSVForMonth(datePicker.value);
         });
+        async function loadCentralTable() {
+    try {
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
 
+        const data = await response.json();
+        const centralTable = document.getElementById("centralTable");
+        centralTable.innerHTML = "";
+
+        if (!data || data.length === 0) {
+            centralTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
+            return;
+        }
+
+        data.forEach(entry => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${entry.date}</td>
+                <td>${entry.time}</td>
+                <td>${entry.shift}</td>
+                <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
+                    ${entry.temperature}
+                </td>
+                <td>${entry.nurse}</td>
+            `;
+            centralTable.appendChild(row);
+        });
+    } catch (error) {
+        console.error("Error loading central table:", error);
+        document.getElementById("centralTable").innerHTML =
+            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดตารางกลาง</td></tr>`;
+    }
+}
         // Set the initial date to today and update the view on page load
         document.addEventListener("DOMContentLoaded", () => {
             datePicker.valueAsDate = new Date();
             updateView(datePicker.value);
+            loadCentralTable();
+            
         });
     </script>
 </body>
