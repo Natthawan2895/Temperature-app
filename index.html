@@ -1,11 +1,15 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ระบบบันทึกอุณหภูมิตู้เย็นยา (รายเดือน)</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
     <style>
@@ -13,21 +17,12 @@
         .container-card {
             background-color: white;
             border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             padding: 24px;
             margin-bottom: 24px;
         }
         .valid-temp { color: green; font-weight: bold; }
         .invalid-temp { color: red; font-weight: bold; }
-        .custom-modal {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background-color: rgba(0,0,0,0.5);
-            display:flex; justify-content:center; align-items:center; z-index:100;
-        }
-        .custom-modal-content {
-            background:white; padding:32px; border-radius:12px;
-            max-width:400px; text-align:center;
-        }
     </style>
 </head>
 <body>
@@ -37,46 +32,9 @@
             <p class="text-muted">หอผู้ป่วยหนักอายุรกรรม3 โรงพยาบาลศูนย์นครพิงค์</p>
         </div>
 
-        <div class="row g-3">
-            <div class="col-12 col-md-6">
-                <div class="container-card">
-                    <h4 class="mb-3">เลือกวันที่</h4>
-                    <input type="date" id="selectedDate" class="form-control" required />
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <div class="container-card">
-                    <h4 class="mb-3">ฟอร์มบันทึกอุณหภูมิ</h4>
-                    <form id="temperatureForm">
-                        <div class="mb-3">
-                            <label for="time" class="form-label">เลือกเวลา</label>
-                            <input type="time" id="time" class="form-control" required />
-                            <div id="shiftInfo" class="form-text fw-bold mt-1 text-primary"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="temperature" class="form-label">อุณหภูมิ (°C)</label>
-                            <input type="number" step="0.1" id="temperature" class="form-control" required />
-                            <div id="tempFeedback" class="form-text"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="nurse" class="form-label">ชื่อพยาบาลผู้บันทึก</label>
-                            <input type="text" id="nurse" class="form-control" required />
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-save me-2"></i> บันทึก
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
+        <!-- ตารางกลาง -->
         <div class="container-card">
-            <h4 class="mb-3">บันทึกอุณหภูมิประจำวัน</h4>
-            <div class="d-flex justify-content-end mb-3">
-                <button id="downloadCsvBtn" class="btn btn-success">
-                    <i class="fas fa-download me-2"></i> ดาวน์โหลดรายงาน CSV ของเดือน
-                </button>
-            </div>
+            <h4 class="mb-3">ข้อมูลบันทึกทั้งหมด</h4>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                     <thead class="table-primary">
@@ -89,186 +47,75 @@
                         </tr>
                     </thead>
                     <tbody id="centralTable">
-                        <tr><td colspan="5" class="text-muted">กำลังโหลดข้อมูล...</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted">กำลังโหลด...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
-        <div class="container-card">
-            <h4 class="mb-3">กราฟแนวโน้มอุณหภูมิ (°C)</h4>
-            <div style="height: 400px;">
-                <canvas id="tempChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div id="customModal" class="custom-modal d-none">
-        <div class="custom-modal-content">
-            <p id="modalMessage" class="fs-5 text-gray-700"></p>
-            <button id="closeModalBtn" class="btn btn-primary w-100 mt-3">ตกลง</button>
-        </div>
     </div>
 
     <script>
-    const form = document.getElementById("temperatureForm");
-    const recordTable = document.getElementById("centralTable");
-    const tempInput = document.getElementById("temperature");
-    const tempFeedback = document.getElementById("tempFeedback");
-    const datePicker = document.getElementById("selectedDate");
-    const downloadCsvBtn = document.getElementById("downloadCsvBtn");
-    const timeInput = document.getElementById("time");
-    const shiftInfo = document.getElementById("shiftInfo");
-    const customModal = document.getElementById("customModal");
-    const modalMessage = document.getElementById("modalMessage");
-    const closeModalBtn = document.getElementById("closeModalBtn");
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2xwbtSIgYHFGLVJkQ0vyVG9T8XiW1OmD9DTdIK12ZIIa8bFVsktsRjnQIvoCryUmA/exec';
 
-    const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcJmFBc-lMrpH1S24EHUZZszysV-2bV_1ArDbv_Sim5vI7F52fgjeR4b5_fF9PdoJP/exec';
-
-    // Chart.js
-    const ctx = document.getElementById("tempChart").getContext("2d");
-    const tempChart = new Chart(ctx, {
-        type: "line",
-        data: { labels: [], datasets: [{ label: "อุณหภูมิ", data: [], borderColor: "#007bff", fill: true }] },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-    function formatDateThai(dateStr) {
-    const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    const [year, month, day] = dateStr.split("-");
-    const thaiYear = parseInt(year) + 543;
-    return `${parseInt(day)} ${months[parseInt(month) - 1]} ${thaiYear}`;
-}
-
-// ฟังก์ชันแปลงเวลาให้อ่านง่าย
-function formatTimeThai(timeStr) {
-    if (!timeStr) return "";
-    const [hour, minute] = timeStr.split(":");
-    return `${hour}:${minute} น.`;
-}
-
-// อัปเดตตารางและกราฟ
-function updateView(date) {
-    recordTable.innerHTML = "";
-    tempChart.data.labels = [];
-    tempChart.data.datasets[0].data = [];
-
-    if (allData[date]) {
-        // Sort records by time
-        allData[date].sort((a, b) => a.time.localeCompare(b.time));
-
-        allData[date].forEach((entry) => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${formatTimeThai(entry.time)}</td>
-                <td>${entry.shift}</td>
-                <td class="${entry.temp >= 2 && entry.temp <= 8 ? "valid-temp" : "invalid-temp"}">
-                    ${entry.temp.toFixed(1)}
-                </td>
-                <td>${entry.nurse}</td>
-                <td>${formatDateThai(date)}</td>
-            `;
-            recordTable.appendChild(row);
-
-            tempChart.data.labels.push(formatTimeThai(entry.time));
-            tempChart.data.datasets[0].data.push(entry.temp);
-        });
-    }
-    tempChart.update();
-}
-    function showModal(message) {
-        modalMessage.textContent = message;
-        customModal.classList.remove('d-none');
-    }
-    closeModalBtn.addEventListener('click', () => customModal.classList.add('d-none'));
-
-    function getShiftFromTime(timeStr) {
-        const [hh, mm] = timeStr.split(":").map(Number);
-        const totalMins = hh * 60 + mm;
-        if (totalMins <= 480) return "กะดึก (00.00-08.00)";
-        if (totalMins <= 960) return "กะเช้า (08.01-16.00)";
-        return "กะบ่าย (16.01-23.59)";
-    }
-
-    timeInput.addEventListener("input", () => {
-        shiftInfo.textContent = timeInput.value ? `กะ: ${getShiftFromTime(timeInput.value)}` : "";
-    });
-
-    async function loadCentralTable() {
-    try {
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
-        if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
-
-        const data = await response.json();
-        const centralTable = document.getElementById("centralTable");
-        centralTable.innerHTML = "";
-
-        if (!data || data.length === 0) {
-            centralTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
-            return;
+        // แปลง ISO datetime เป็น วันที่แบบไทย
+        function formatDateThaiFromISO(isoString) {
+            if (!isoString) return "";
+            const date = new Date(isoString);
+            const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear() + 543; // แปลงเป็น พ.ศ.
+            return `${day} ${month} ${year}`;
         }
 
-        data.forEach(entry => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${formatDateThaiFromISO(entry.date)}</td>
-                <td>${formatTimeThaiFromISO(entry.date)}</td>
-                <td>${entry.shift}</td>
-                <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
-                    ${entry.temperature}
-                </td>
-                <td>${entry.nurse}</td>
-            `;
-            centralTable.appendChild(row);
-        });
-    } catch (error) {
-        console.error("Error loading central table:", error);
-        document.getElementById("centralTable").innerHTML =
-            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดตารางกลาง</td></tr>`;
-    }
-}
-
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const date = datePicker.value;
-        const timeVal = timeInput.value;
-        const shift = getShiftFromTime(timeVal);
-        const temperature = parseFloat(tempInput.value);
-        const nurse = document.getElementById("nurse").value.trim();
-
-        if (!date || !timeVal || isNaN(temperature) || !nurse) {
-            showModal("กรุณากรอกข้อมูลให้ครบถ้วน");
-            return;
+        // แปลง ISO datetime เป็น เวลาแบบไทย
+        function formatTimeThaiFromISO(isoString) {
+            if (!isoString) return "";
+            const date = new Date(isoString);
+            const hh = String(date.getHours()).padStart(2, "0");
+            const mm = String(date.getMinutes()).padStart(2, "0");
+            return `${hh}:${mm} น.`;
         }
 
-        const formData = new FormData();
-        formData.append('date', date);
-        formData.append('time', timeVal);
-        formData.append('shift', shift);
-        formData.append('temperature', temperature.toFixed(1));
-        formData.append('nurseName', nurse);
+        // โหลดข้อมูลตารางกลางจาก Google Sheet
+        async function loadCentralTable() {
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+                if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
 
-        try {
-            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: formData });
-            const result = await response.json();
-            if (result.result === "success") {
-                showModal("บันทึกข้อมูลสำเร็จ!");
-                form.reset();
-                shiftInfo.textContent = "";
-                tempFeedback.textContent = "";
-                loadCentralTable();
-            } else {
-                showModal("บันทึกไม่สำเร็จ: " + result.error);
+                const data = await response.json();
+                const centralTable = document.getElementById("centralTable");
+                centralTable.innerHTML = "";
+
+                if (!data || data.length === 0) {
+                    centralTable.innerHTML = `<tr><td colspan="5" class="text-warning text-center">ไม่มีข้อมูล</td></tr>`;
+                    return;
+                }
+
+                data.forEach(entry => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${formatDateThaiFromISO(entry.date)}</td>
+                        <td>${formatTimeThaiFromISO(entry.date)}</td>
+                        <td>${entry.shift}</td>
+                        <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
+                            ${entry.temperature}
+                        </td>
+                        <td>${entry.nurse}</td>
+                    `;
+                    centralTable.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Error loading central table:", error);
+                document.getElementById("centralTable").innerHTML =
+                    `<tr><td colspan="5" class="text-danger text-center">ไม่สามารถโหลดข้อมูล</td></tr>`;
             }
-        } catch (error) {
-            showModal("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         }
-    });
 
-    document.addEventListener("DOMContentLoaded", () => {
-        datePicker.valueAsDate = new Date();
-        loadCentralTable();
-    });
-</script>
+        document.addEventListener("DOMContentLoaded", () => {
+            loadCentralTable();
+        });
+    </script>
 </body>
 </html>
