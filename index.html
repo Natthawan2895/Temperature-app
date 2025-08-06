@@ -135,9 +135,309 @@
     </div>
 
     <script>
+        // DOM element references
+        const form = document.getElementById("temperatureForm");
+        const recordTable = document.getElementById("recordTable");
+        const tempInput = document.getElementById("temperature");
+        const tempFeedback = document.getElementById("tempFeedback");
+        const datePicker = document.getElementById("selectedDate");
+        const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+        const timeInput = document.getElementById("time");
+        const shiftInfo = document.getElementById("shiftInfo");
+        const customModal = document.getElementById("customModal");
+        const modalMessage = document.getElementById("modalMessage");
+        const closeModalBtn = document.getElementById("closeModalBtn");
+        let allData = JSON.parse(localStorage.getItem('monthlyTemperatureData')) || {};
+
         // --- Your existing DOM references, chart setup, and functions remain unchanged ---
 
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIIhjjbqVi9zYufiy7_w_7WmGjMMNJJfk2yfMvrOu_EC51ZZ9BiXcq5h94ebFIQaMS/exec'; // replace with real URL
+        const ctx = document.getElementById("tempChart").getContext("2d");
+        const tempChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: "อุณหภูมิ",
+                        data: [],
+                        borderColor: "#007bff", // Bootstrap primary color
+                        backgroundColor: "rgba(0, 123, 255, 0.2)",
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#007bff',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: "top" },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                const date = datePicker.value;
+                                const time = tempChart.data.labels[item.dataIndex];
+                                return บันทึกเมื่อ: ${date} เวลา ${time};
+                            },
+                            label: function(tooltipItem) {
+                                const date = datePicker.value;
+                                const entry = allData[date][tooltipItem.dataIndex];
+                                return [
+                                    อุณหภูมิ: ${entry.temp.toFixed(1)} °C,
+                                    กะ: ${entry.shift},
+                                    ผู้บันทึก: ${entry.nurse}
+                                ];
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            safeZone: {
+                                type: "box",
+                                yMin: 2,
+                                yMax: 8,
+                                backgroundColor: "rgba(0, 200, 0, 0.1)",
+                                borderWidth: 0,
+                                label: { enabled: true, content: "ช่วงปลอดภัย (2-8°C)", position: "start", font: { weight: 'bold' } },
+                            },
+                            lineMin: {
+                                type: "line",
+                                yMin: 2,
+                                yMax: 2,
+                                borderColor: "green",
+                                borderWidth: 2,
+                                label: { content: "2°C", enabled: true, position: "end" },
+                            },
+                            lineMax: {
+                                type: "line",
+                                yMin: 8,
+                                yMax: 8,
+                                borderColor: "red",
+                                borderWidth: 2,
+                                label: { content: "8°C", enabled: true, position: "end" },
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        title: { display: true, text: "°C" },
+                    },
+                },
+            },
+        });
+        // Function to show a custom modal instead of alert()
+        function showModal(message) {
+            modalMessage.textContent = message;
+            customModal.classList.remove('d-none');
+        }
+
+        // Close modal button handler
+        closeModalBtn.addEventListener('click', () => {
+            customModal.classList.add('d-none');
+        });
+
+        // Function to determine the shift based on the time (HH:MM 24hr format)
+        function getShiftFromTime(timeStr) {
+            const [hh, mm] = timeStr.split(":").map(Number);
+            const totalMins = hh * 60 + mm;
+
+            if (totalMins >= 0 && totalMins <= 480) { // 00:00 - 08:00
+                return "กะดึก (00.00-08.00)";
+            } else if (totalMins >= 481 && totalMins <= 960) { // 08:01 - 16:00
+                return "กะเช้า (08.01-16.00)";
+            } else { // 16:01 - 23:59
+                return "กะบ่าย (16.01-23.59)";
+            }
+        }
+
+        // Update shift info when time input changes
+        timeInput.addEventListener("input", () => {
+            if (timeInput.value) {
+                const shift = getShiftFromTime(timeInput.value);
+                shiftInfo.textContent = กะ: ${shift};
+            } else {
+                shiftInfo.textContent = "";
+            }
+        });
+
+        // Function to update the table and chart based on the selected date
+        function updateView(date) {
+            recordTable.innerHTML = "";
+            tempChart.data.labels = [];
+            tempChart.data.datasets[0].data = [];
+
+            if (allData[date]) {
+                // Sort the records by time
+                allData[date].sort((a, b) => a.time.localeCompare(b.time));
+
+                allData[date].forEach((entry) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = 
+                        <td>${entry.time}</td>
+                        <td>${entry.shift}</td>
+                        <td class="${entry.temp >= 2 && entry.temp <= 8 ? "valid-temp" : "invalid-temp"}">
+                            ${entry.temp.toFixed(1)}
+                        </td>
+                        <td>${entry.nurse}</td>
+                        <td>${date}</td>
+                    ;
+                    recordTable.appendChild(row);
+
+                    tempChart.data.labels.push(entry.time);
+                    tempChart.data.datasets[0].data.push(entry.temp);
+                });
+            }
+            tempChart.update();
+        }
+
+        // Function to save data to localStorage
+        function saveData() {
+            localStorage.setItem('monthlyTemperatureData', JSON.stringify(allData));
+        }
+
+        // Function to create and download the monthly CSV report
+        function downloadCSVForMonth(date) {
+            if (!date) {
+                showModal("กรุณาเลือกวันที่ก่อนดาวน์โหลดรายงาน");
+                return;
+            }
+            const [year, month] = date.split("-");
+            
+            let allMonthRecords = [];
+            for (const key in allData) {
+                if (key.startsWith(${year}-${month})) {
+                    allMonthRecords = allMonthRecords.concat(allData[key]);
+                }
+            }
+            
+            if (allMonthRecords.length === 0) {
+                showModal("ไม่มีข้อมูลในเดือนนี้");
+                return;
+            }
+
+            // Sort all records for the month by date and time
+            allMonthRecords.sort((a, b) => {
+                const dateA = new Date(${a.date}T${a.time});
+                const dateB = new Date(${b.date}T${b.time});
+                return dateA - dateB;
+            });
+            
+            const header = ["วันที่", "เวลา", "กะ", "อุณหภูมิ (°C)", "พยาบาลผู้บันทึก"];
+            const csvRows = [
+                header.join(","),
+                ...allMonthRecords.map(r => ${r.date},${r.time},${r.shift},${r.temp.toFixed(1)},${r.nurse})
+            ];
+            
+            const csvContent = csvRows.join("\n");
+            
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = Temperature_Report_${year}-${month}.csv;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Validate temperature input in real-time
+        tempInput.addEventListener("input", () => {
+            const temp = parseFloat(tempInput.value);
+            if (!isNaN(temp)) {
+                if (temp >= 2 && temp <= 8) {
+                    tempFeedback.textContent = "อุณหภูมิอยู่ในช่วงปกติ";
+                    tempFeedback.className = "valid-temp";
+                } else {
+                    tempFeedback.textContent = "⚠ อุณหภูมินอกช่วง (ควรอยู่ระหว่าง 2-8 °C)";
+                    tempFeedback.className = "invalid-temp";
+                }
+            } else {
+                tempFeedback.textContent = "";
+            }
+        });
+
+        // Form submission handler
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const timeVal = timeInput.value;
+            const shift = getShiftFromTime(timeVal);
+            const temperature = parseFloat(tempInput.value);
+            const nurse = document.getElementById("nurse").value.trim();
+            const date = datePicker.value;
+
+            if (!date || !timeVal || isNaN(temperature) || nurse === "") {
+                showModal("กรุณากรอกข้อมูลให้ครบถ้วน");
+                return;
+            }
+
+            // Prepare the data to be sent to Google Apps Script
+            const formData = new FormData();
+            formData.append('date', date);
+            formData.append('time', timeVal);
+            formData.append('shift', shift);
+            formData.append('temperature', temperature.toFixed(1));
+            formData.append('nurseName', nurse);
+
+            try {
+                // Send data to the Google Apps Script Web App
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('การส่งข้อมูลล้มเหลว');
+                }
+
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    // If successful, save to local storage and update the view
+                    if (!allData[date]) {
+                        allData[date] = [];
+                    }
+                    allData[date].push({ time: timeVal, shift, temp: temperature, nurse, date });
+                    saveData();
+                    updateView(date);
+                    
+                    showModal("บันทึกข้อมูลสำเร็จ!");
+                    form.reset();
+                    shiftInfo.textContent = "";
+                    tempFeedback.textContent = "";
+                } else {
+                    showModal("มีข้อผิดพลาดในการบันทึกข้อมูล: " + result.error);
+                }
+
+            } catch (error) {
+                showModal("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: " + error.message);
+            }
+        });
+
+        // Update the view when the date is changed
+        datePicker.addEventListener("change", () => {
+            updateView(datePicker.value);
+        });
+
+        // Download CSV button handler
+        downloadCsvBtn.addEventListener("click", () => {
+            downloadCSVForMonth(datePicker.value);
+        });
+
+        // Set the initial date to today and update the view on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            datePicker.valueAsDate = new Date();
+            updateView(datePicker.value);
+        });
 
         // Load central table function
         async function loadCentralTable() {
