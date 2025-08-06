@@ -111,117 +111,118 @@
     </div>
 
     <script>
-        const form = document.getElementById("temperatureForm");
-        const recordTable = document.getElementById("centralTable");
-        const tempInput = document.getElementById("temperature");
-        const tempFeedback = document.getElementById("tempFeedback");
-        const datePicker = document.getElementById("selectedDate");
-        const downloadCsvBtn = document.getElementById("downloadCsvBtn");
-        const timeInput = document.getElementById("time");
-        const shiftInfo = document.getElementById("shiftInfo");
-        const customModal = document.getElementById("customModal");
-        const modalMessage = document.getElementById("modalMessage");
-        const closeModalBtn = document.getElementById("closeModalBtn");
+    const form = document.getElementById("temperatureForm");
+    const recordTable = document.getElementById("centralTable");
+    const tempInput = document.getElementById("temperature");
+    const tempFeedback = document.getElementById("tempFeedback");
+    const datePicker = document.getElementById("selectedDate");
+    const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+    const timeInput = document.getElementById("time");
+    const shiftInfo = document.getElementById("shiftInfo");
+    const customModal = document.getElementById("customModal");
+    const modalMessage = document.getElementById("modalMessage");
+    const closeModalBtn = document.getElementById("closeModalBtn");
 
-        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3xKOqI9GLh8uhHAEGcdZ98D4epQoBwKBcxmFsXyRqm51I1htYj0aaMeu3X1ut4oHE/exec';
+    const GOOGLE_APPS_SCRIPT_URL = 'YOUR_DEPLOYED_WEB_APP_URL';
 
-        // Chart setup
-        const ctx = document.getElementById("tempChart").getContext("2d");
-        const tempChart = new Chart(ctx, {
-            type: "line",
-            data: { labels: [], datasets: [{ label: "อุณหภูมิ", data: [], borderColor: "#007bff", fill: true }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+    // Chart.js
+    const ctx = document.getElementById("tempChart").getContext("2d");
+    const tempChart = new Chart(ctx, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "อุณหภูมิ", data: [], borderColor: "#007bff", fill: true }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
 
-        function showModal(message) {
-            modalMessage.textContent = message;
-            customModal.classList.remove('d-none');
-        }
-        closeModalBtn.addEventListener('click', () => customModal.classList.add('d-none'));
+    function showModal(message) {
+        modalMessage.textContent = message;
+        customModal.classList.remove('d-none');
+    }
+    closeModalBtn.addEventListener('click', () => customModal.classList.add('d-none'));
 
-        function getShiftFromTime(timeStr) {
-            const [hh, mm] = timeStr.split(":").map(Number);
-            const totalMins = hh * 60 + mm;
-            if (totalMins <= 480) return "กะดึก (00.00-08.00)";
-            if (totalMins <= 960) return "กะเช้า (08.01-16.00)";
-            return "กะบ่าย (16.01-23.59)";
-        }
-        timeInput.addEventListener("input", () => {
-            shiftInfo.textContent = timeInput.value ? `กะ: ${getShiftFromTime(timeInput.value)}` : "";
-        });
+    function getShiftFromTime(timeStr) {
+        const [hh, mm] = timeStr.split(":").map(Number);
+        const totalMins = hh * 60 + mm;
+        if (totalMins <= 480) return "กะดึก (00.00-08.00)";
+        if (totalMins <= 960) return "กะเช้า (08.01-16.00)";
+        return "กะบ่าย (16.01-23.59)";
+    }
 
-        async function loadCentralTable() {
-            try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
-                const data = await response.json();
-                recordTable.innerHTML = "";
+    timeInput.addEventListener("input", () => {
+        shiftInfo.textContent = timeInput.value ? `กะ: ${getShiftFromTime(timeInput.value)}` : "";
+    });
 
-                if (!data.length) {
-                    recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
-                    return;
-                }
+    async function loadCentralTable() {
+        try {
+            const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+            const data = await response.json();
+            recordTable.innerHTML = "";
 
-                data.forEach(entry => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td>${entry.date}</td>
-                        <td>${entry.time}</td>
-                        <td>${entry.shift}</td>
-                        <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">${entry.temperature}</td>
-                        <td>${entry.nurse}</td>
-                    `;
-                    recordTable.appendChild(row);
-
-                    tempChart.data.labels.push(`${entry.date} ${entry.time}`);
-                    tempChart.data.datasets[0].data.push(entry.temperature);
-                });
-                tempChart.update();
-            } catch (error) {
-                recordTable.innerHTML = `<tr><td colspan="5" class="text-danger">โหลดข้อมูลล้มเหลว</td></tr>`;
-            }
-        }
-
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const date = datePicker.value;
-            const timeVal = timeInput.value;
-            const shift = getShiftFromTime(timeVal);
-            const temperature = parseFloat(tempInput.value);
-            const nurse = document.getElementById("nurse").value.trim();
-
-            if (!date || !timeVal || isNaN(temperature) || !nurse) {
-                showModal("กรุณากรอกข้อมูลให้ครบถ้วน");
+            if (!data.length) {
+                recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูล</td></tr>`;
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('date', date);
-            formData.append('time', timeVal);
-            formData.append('shift', shift);
-            formData.append('temperature', temperature.toFixed(1));
-            formData.append('nurseName', nurse);
+            data.forEach(entry => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.time}</td>
+                    <td>${entry.shift}</td>
+                    <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">${entry.temperature}</td>
+                    <td>${entry.nurse}</td>
+                `;
+                recordTable.appendChild(row);
 
-            try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: formData });
-                const result = await response.json();
-                if (result.result === "success") {
-                    showModal("บันทึกข้อมูลสำเร็จ!");
-                    form.reset();
-                    shiftInfo.textContent = "";
-                    tempFeedback.textContent = "";
-                    loadCentralTable();
-                } else {
-                    showModal("บันทึกไม่สำเร็จ: " + result.error);
-                }
-            } catch (error) {
-                showModal("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                tempChart.data.labels.push(`${entry.date} ${entry.time}`);
+                tempChart.data.datasets[0].data.push(entry.temperature);
+            });
+            tempChart.update();
+        } catch (error) {
+            recordTable.innerHTML = `<tr><td colspan="5" class="text-danger">โหลดข้อมูลล้มเหลว</td></tr>`;
+        }
+    }
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const date = datePicker.value;
+        const timeVal = timeInput.value;
+        const shift = getShiftFromTime(timeVal);
+        const temperature = parseFloat(tempInput.value);
+        const nurse = document.getElementById("nurse").value.trim();
+
+        if (!date || !timeVal || isNaN(temperature) || !nurse) {
+            showModal("กรุณากรอกข้อมูลให้ครบถ้วน");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('date', date);
+        formData.append('time', timeVal);
+        formData.append('shift', shift);
+        formData.append('temperature', temperature.toFixed(1));
+        formData.append('nurseName', nurse);
+
+        try {
+            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.result === "success") {
+                showModal("บันทึกข้อมูลสำเร็จ!");
+                form.reset();
+                shiftInfo.textContent = "";
+                tempFeedback.textContent = "";
+                loadCentralTable();
+            } else {
+                showModal("บันทึกไม่สำเร็จ: " + result.error);
             }
-        });
+        } catch (error) {
+            showModal("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+        }
+    });
 
-        document.addEventListener("DOMContentLoaded", () => {
-            datePicker.valueAsDate = new Date();
-            loadCentralTable();
-        });
-    </script>
+    document.addEventListener("DOMContentLoaded", () => {
+        datePicker.valueAsDate = new Date();
+        loadCentralTable();
+    });
+</script>
 </body>
 </html>
