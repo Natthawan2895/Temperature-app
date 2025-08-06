@@ -133,6 +133,7 @@ const tempChart = new Chart(ctx, {
 });
 
 // ฟังก์ชันแปลงวันที่
+// ฟังก์ชันแปลงวันที่ไทย
 function formatDateThai(dateStr) {
     const date = new Date(dateStr);
     const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
@@ -143,13 +144,74 @@ function formatDateThai(dateStr) {
     return `${d} ${m} ${y}`;
 }
 
-// ฟังก์ชันแปลงเวลา
-function formatTimeThai(dateStr, timeStr) {
-    if (timeStr) return `${timeStr} น.`;
-    const date = new Date(dateStr);
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mm = String(date.getMinutes()).padStart(2, "0");
+// ฟังก์ชันแปลงเวลาไทย
+function formatTimeThai(timeStr) {
+    if (!timeStr) return "";
+    const [hh, mm] = timeStr.split(":");
     return `${hh}:${mm} น.`;
+}
+
+async function loadMonthlyData() {
+    try {
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        if (!response.ok) throw new Error("โหลดข้อมูลล้มเหลว");
+
+        const data = await response.json();
+        const recordTable = document.getElementById("centralTable");
+        const selectedDate = document.getElementById("selectedDate").value;
+
+        if (!selectedDate) {
+            recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">กรุณาเลือกวันที่</td></tr>`;
+            return;
+        }
+
+        // หาเดือนที่เลือก
+        const selectedMonth = new Date(selectedDate).getMonth();
+        const selectedYear = new Date(selectedDate).getFullYear();
+
+        // กรองข้อมูลเฉพาะเดือนที่เลือก
+        const monthlyData = data.filter(entry => {
+            const d = new Date(entry.date);
+            return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+        });
+
+        recordTable.innerHTML = "";
+        tempChart.data.labels = [];
+        tempChart.data.datasets[0].data = [];
+
+        if (monthlyData.length === 0) {
+            recordTable.innerHTML = `<tr><td colspan="5" class="text-warning">ไม่มีข้อมูลของเดือนนี้</td></tr>`;
+            tempChart.update();
+            return;
+        }
+
+        // เรียงข้อมูล
+        monthlyData.sort((a, b) => new Date(a.date + "T" + a.time) - new Date(b.date + "T" + b.time));
+
+        monthlyData.forEach(entry => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${formatDateThai(entry.date)}</td>
+                <td>${formatTimeThai(entry.time)}</td>
+                <td>${entry.shift}</td>
+                <td class="${entry.temperature >= 2 && entry.temperature <= 8 ? "valid-temp" : "invalid-temp"}">
+                    ${entry.temperature}
+                </td>
+                <td>${entry.nurse}</td>
+            `;
+            recordTable.appendChild(row);
+
+            // เพิ่มข้อมูลลงกราฟ
+            tempChart.data.labels.push(`${formatDateThai(entry.date)} ${formatTimeThai(entry.time)}`);
+            tempChart.data.datasets[0].data.push(entry.temperature);
+        });
+
+        tempChart.update();
+    } catch (error) {
+        console.error("Error loading monthly data:", error);
+        document.getElementById("centralTable").innerHTML =
+            `<tr><td colspan="5" class="text-danger">ไม่สามารถโหลดข้อมูล</td></tr>`;
+    }
 }
 
 function showModal(message) {
