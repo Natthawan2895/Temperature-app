@@ -279,10 +279,6 @@ async function loadCentralTable() {
                 <td>${entry.nurse}</td>
             `;
             recordTable.appendChild(row);
-
-            // เพิ่มข้อมูลกราฟที่นี่
-            tempChart.data.labels.push(`${formatDateThai(entry.date)} ${formatTimeThai2(entry.time)}`);
-            tempChart.data.datasets[0].data.push(entry.temperature);
         });
 
         tempChart.update();
