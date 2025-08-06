@@ -132,20 +132,25 @@
         data: { labels: [], datasets: [{ label: "อุณหภูมิ", data: [], borderColor: "#007bff", fill: true }] },
         options: { responsive: true, maintainAspectRatio: false }
     });
-    function formatDateThai(dateStr) {
-    const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    const [year, month, day] = dateStr.split("-");
-    const thaiYear = parseInt(year) + 543;
-    return `${parseInt(day)} ${months[parseInt(month) - 1]} ${thaiYear}`;
-}
+    function formatDateThaiFromISO(isoString) {
+            if (!isoString) return "";
+            const date = new Date(isoString);
+            const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear() + 543; // แปลงเป็น พ.ศ.
+            return `${day} ${month} ${year}`;
+        }
 
-// ฟังก์ชันแปลงเวลาให้อ่านง่าย
-function formatTimeThai(timeStr) {
-    if (!timeStr) return "";
-    const [hour, minute] = timeStr.split(":");
-    return `${hour}:${minute} น.`;
-}
+        // แปลง ISO datetime เป็น เวลาแบบไทย
+        function formatTimeThaiFromISO(isoString) {
+            if (!isoString) return "";
+            const date = new Date(isoString);
+            const hh = String(date.getHours()).padStart(2, "0");
+            const mm = String(date.getMinutes()).padStart(2, "0");
+            return `${hh}:${mm} น.`;
+        }
 
 // อัปเดตตารางและกราฟ
 function updateView(date) {
@@ -160,7 +165,8 @@ function updateView(date) {
         allData[date].forEach((entry) => {
             const row = document.createElement("tr");
             row.innerHTML = `
-                <td>${formatTimeThai(entry.time)}</td>
+                <td>${formatDateThaiFromISO(entry.date)}</td>
+                <td>${formatTimeThaiFromISO(entry.date)}</td>
                 <td>${entry.shift}</td>
                 <td class="${entry.temp >= 2 && entry.temp <= 8 ? "valid-temp" : "invalid-temp"}">
                     ${entry.temp.toFixed(1)}
